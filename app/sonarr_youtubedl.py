@@ -52,11 +52,17 @@ class SonarrYTDL(object):
             scheme = "http"
             if cfg['sonarr']['ssl']:
                 scheme == "https"
+
             self.base_url = "{0}://{1}:{2}".format(
                 scheme,
                 cfg['sonarr']['host'],
                 str(cfg['sonarr']['port'])
             )
+
+            self.api_path = "api/v3"
+            if 'apiBasePath' in cfg['sonarr']:
+              self.api_path = "{}".format(cfg['sonarr']['apiBasePath']).strip('/')
+
             self.api_key = cfg['sonarr']['apikey']
         except Exception:
             sys.exit("Error with sonarr config.yml values.")
@@ -77,16 +83,18 @@ class SonarrYTDL(object):
         """Returns all episodes for the given series"""
         logger.debug('Begin call Sonarr for all episodes for series_id: {}'.format(series_id))
         args = {'seriesId': series_id}
-        res = self.request_get("{}/api/episode".format(
-            self.base_url),
+        res = self.request_get("{}/{}/episode".format(
+            self.base_url,
+            self.api_path),
             args
         )
         return res.json()
 
     def get_episode_files_by_series_id(self, series_id):
         """Returns all episode files for the given series"""
-        res = self.request_get("{}/api/episodefile?seriesId={}".format(
+        res = self.request_get("{}/{}/episodefile?seriesId={}".format(
             self.base_url,
+            self.api_path,
             series_id
         ))
         return res.json()
@@ -94,16 +102,18 @@ class SonarrYTDL(object):
     def get_series(self):
         """Return all series in your collection"""
         logger.debug('Begin call Sonarr for all available series')
-        res = self.request_get("{}/api/series".format(
-            self.base_url
+        res = self.request_get("{}/{}/series".format(
+            self.base_url,
+            self.api_path
         ))
         return res.json()
 
     def get_series_by_series_id(self, series_id):
         """Return the series with the matching ID or 404 if no matching series is found"""
         logger.debug('Begin call Sonarr for specific series series_id: {}'.format(series_id))
-        res = self.request_get("{}/api/series/{}".format(
+        res = self.request_get("{}/{}/series/{}".format(
             self.base_url,
+            self.api_path,
             series_id
         ))
         return res.json()
@@ -152,7 +162,7 @@ class SonarrYTDL(object):
             "seriesId": str(series_id)
         }
         res = self.request_put(
-            "{}/api/command".format(self.base_url),
+            "{}/{}/command".format(self.base_url, self.api_path),
             None,
             data
         )
