@@ -27,26 +27,38 @@ class SonarrYTDLPApp:
         Args:
             config_path: Path to configuration file.
         """
+        print("DEBUG: Starting SonarrYTDLPApp.__init__")
         logger.info("Loading configuration...")
         # Load configuration
+        print("DEBUG: About to create ConfigManager")
         self.config_manager = ConfigManager(config_path)
+        print("DEBUG: About to load config")
         self.config = self.config_manager.load_config()
+        print("DEBUG: Config loaded successfully")
         logger.info("Configuration loaded successfully")
 
         # Set up logging
+        print("DEBUG: About to set up logging")
         logger.info("Setting up logging...")
         debug_mode = self._get_debug_mode()
+        print(f"DEBUG: Debug mode: {debug_mode}")
         self.logger = setup_logging(debug=debug_mode)
+        print("DEBUG: Logging configured")
         logger.info("Logging configured (debug=%s)", debug_mode)
 
         # Initialize services
+        print("DEBUG: About to initialize services")
         logger.info("Initializing services...")
         self._initialize_services()
+        print("DEBUG: Services initialized")
         logger.info("Services initialized successfully")
 
         # Set scan interval
+        print("DEBUG: About to set scan interval")
         self.scan_interval = self.config_manager.get_value('sonarrytdl', 'scan_interval', 60)
+        print(f"DEBUG: Scan interval set to {self.scan_interval} minutes")
         logger.info("Scan interval set to %d minutes", self.scan_interval)
+        print("DEBUG: SonarrYTDLPApp.__init__ completed")
 
     def _get_debug_mode(self) -> bool:
         """Get debug mode from configuration."""
@@ -57,9 +69,11 @@ class SonarrYTDLPApp:
 
     def _initialize_services(self) -> None:
         """Initialize external services."""
+        print("DEBUG: Initializing Sonarr client...")
         logger.info("Initializing Sonarr client...")
         # Initialize Sonarr client
         sonarr_config = self.config_manager.get_section('sonarr')
+        print(f"DEBUG: Sonarr config: {sonarr_config}")
         self.sonarr_client = SonarrClient(
             host=sonarr_config['host'],
             port=int(sonarr_config['port']),
@@ -67,16 +81,20 @@ class SonarrYTDLPApp:
             ssl=sonarr_config.get('ssl', False),
             api_base_path=sonarr_config.get('apiBasePath', 'api/v3')
         )
+        print("DEBUG: Sonarr client created")
         logger.info("Sonarr client initialized")
 
+        print("DEBUG: Initializing YT-DLP service...")
         logger.info("Initializing YT-DLP service...")
         # Initialize YT-DLP service
         ytdl_config = self.config_manager.get_section('ytdl')
+        print(f"DEBUG: YT-DLP config: {ytdl_config}")
         self.ytdlp_service = YTDLPService(
             default_format=ytdl_config['default_format'],
             config_dir=self.config_manager.config_dir,
             debug=self._get_debug_mode()
         )
+        print("DEBUG: YT-DLP service created")
         logger.info("YT-DLP service initialized")
 
     def filter_configured_series(self) -> List[Series]:

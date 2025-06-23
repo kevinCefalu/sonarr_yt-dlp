@@ -44,8 +44,10 @@ def main():
 
     try:
         # Initialize and run the application
+        print("DEBUG: About to create SonarrYTDLPApp")
         logger.info("Initializing application...")
         app = SonarrYTDLPApp()
+        print("DEBUG: SonarrYTDLPApp created successfully")
         logger.info("Starting scheduler...")
         app.run_scheduler()
 
