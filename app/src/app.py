@@ -103,14 +103,24 @@ class SonarrYTDLPApp:
         Returns:
             List of configured Series objects.
         """
+        print("DEBUG: Entered filter_configured_series")
         try:
+            print("DEBUG: About to call sonarr_client.get_series()")
             all_series = self.sonarr_client.get_series()
+            print(f"DEBUG: Got {len(all_series)} series from Sonarr")
         except SonarrAPIError as e:
+            print(f"DEBUG: SonarrAPIError: {e}")
             logger.error("Failed to get series from Sonarr: %s", e)
             return []
+        except Exception as e:
+            print(f"DEBUG: Unexpected error getting series: {e}")
+            logger.error("Unexpected error getting series from Sonarr: %s", e)
+            return []
 
+        print("DEBUG: About to get series configs from config manager")
         configured_series = []
         series_configs = self.config_manager.get_section('series')
+        print(f"DEBUG: Got {len(series_configs)} series configs")
 
         for series in all_series:
             # Find matching configuration
@@ -133,6 +143,7 @@ class SonarrYTDLPApp:
 
         logger.info("Found %d configured series out of %d total",
                    len(configured_series), len(all_series))
+        print(f"DEBUG: Returning {len(configured_series)} configured series")
         return configured_series
 
     def get_missing_episodes(self, series_list: List[Series]) -> List[Episode]:
@@ -259,49 +270,69 @@ class SonarrYTDLPApp:
 
     def run_scan(self) -> None:
         """Run a single scan cycle."""
+        print("DEBUG: Entered run_scan")
         logger.info("Starting scan cycle")
+        print("DEBUG: Logged 'Starting scan cycle'")
         start_time = time.time()
 
         try:
             # Get configured series
+            print("DEBUG: About to get configured series")
             series_list = self.filter_configured_series()
+            print(f"DEBUG: Got {len(series_list) if series_list else 0} configured series")
 
             if not series_list:
                 logger.info("No configured series found")
+                print("DEBUG: No configured series found, returning")
                 return
 
             # Get missing episodes
+            print("DEBUG: About to get missing episodes")
             episodes = self.get_missing_episodes(series_list)
+            print(f"DEBUG: Got {len(episodes) if episodes else 0} missing episodes")
 
             if not episodes:
                 logger.info("No missing episodes found")
+                print("DEBUG: No missing episodes found, returning")
                 return
 
             # Download episodes
+            print("DEBUG: About to download episodes")
             stats = self.download_episodes(series_list, episodes)
+            print(f"DEBUG: Download stats: {stats}")
 
             # Log summary
             duration = time.time() - start_time
             logger.info("Scan completed in %.2f seconds. "
                        "Total: %d, Success: %d, Failed: %d",
                        duration, stats['total'], stats['success'], stats['failed'])
+            print("DEBUG: Scan completed successfully")
 
         except Exception as e:
+            print(f"DEBUG: Exception in run_scan: {e}")
             logger.error("Error during scan cycle: %s", e, exc_info=True)
 
     def run_scheduler(self) -> None:
         """Run the application with scheduled scans."""
+        print("DEBUG: Entered run_scheduler")
         logger.info("Starting Sonarr YT-DLP application")
+        print("DEBUG: Logged 'Starting Sonarr YT-DLP application'")
 
         # Run initial scan
+        print("DEBUG: About to run initial scan")
         logger.info("Running initial scan")
+        print("DEBUG: About to call self.run_scan()")
         self.run_scan()
+        print("DEBUG: Initial scan completed")
 
         # Schedule periodic scans
+        print("DEBUG: About to schedule periodic scans")
         schedule.every(self.scan_interval).minutes.do(self.run_scan)
         logger.info("Scheduled scans every %d minutes", self.scan_interval)
+        print("DEBUG: Scheduled scans configured")
 
         # Main loop
+        print("DEBUG: Entering main loop")
         try:
             while True:
                 schedule.run_pending()
