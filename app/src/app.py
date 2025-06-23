@@ -27,16 +27,22 @@ class SonarrYTDLPApp:
         Args:
             config_path: Path to configuration file.
         """
+        logger.info("Loading configuration...")
         # Load configuration
         self.config_manager = ConfigManager(config_path)
         self.config = self.config_manager.load_config()
+        logger.info("Configuration loaded successfully")
 
         # Set up logging
+        logger.info("Setting up logging...")
         debug_mode = self._get_debug_mode()
         self.logger = setup_logging(debug=debug_mode)
+        logger.info("Logging configured (debug=%s)", debug_mode)
 
         # Initialize services
+        logger.info("Initializing services...")
         self._initialize_services()
+        logger.info("Services initialized successfully")
 
         # Set scan interval
         self.scan_interval = self.config_manager.get_value('sonarrytdl', 'scan_interval', 60)
@@ -51,6 +57,7 @@ class SonarrYTDLPApp:
 
     def _initialize_services(self) -> None:
         """Initialize external services."""
+        logger.info("Initializing Sonarr client...")
         # Initialize Sonarr client
         sonarr_config = self.config_manager.get_section('sonarr')
         self.sonarr_client = SonarrClient(
@@ -60,7 +67,9 @@ class SonarrYTDLPApp:
             ssl=sonarr_config.get('ssl', False),
             api_base_path=sonarr_config.get('apiBasePath', 'api/v3')
         )
+        logger.info("Sonarr client initialized")
 
+        logger.info("Initializing YT-DLP service...")
         # Initialize YT-DLP service
         ytdl_config = self.config_manager.get_section('ytdl')
         self.ytdlp_service = YTDLPService(
@@ -68,6 +77,7 @@ class SonarrYTDLPApp:
             config_dir=self.config_manager.config_dir,
             debug=self._get_debug_mode()
         )
+        logger.info("YT-DLP service initialized")
 
     def filter_configured_series(self) -> List[Series]:
         """Filter series from Sonarr that are configured for download.
