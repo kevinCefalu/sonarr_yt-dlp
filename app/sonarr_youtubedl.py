@@ -10,7 +10,6 @@ import schedule
 import time
 import logging
 
-
 # setup logger
 logger = setup_logging()
 
@@ -20,7 +19,6 @@ now = datetime.now()
 CONFIGFILE = os.environ['CONFIGPATH']
 CONFIGPATH = CONFIGFILE.replace('config.yml', '')
 SCANINTERVAL = 60
-
 
 class SonarrYTDL(object):
 
@@ -140,9 +138,9 @@ class SonarrYTDL(object):
         headers = {
             'Content-Type': 'application/json',
         }
-        args = (
-            ('apikey', self.api_key),
-        )
+        args = {
+            'apikey': self.api_key
+        }
         if params is not None:
             args.update(params)
             logger.debug('Begin PUT with params: {}'.format(params))
@@ -208,7 +206,7 @@ class SonarrYTDL(object):
                     matched.append(ser)
         for check in matched:
             if not check['monitored']:
-                logger.warn('{0} is not currently monitored'.format(ser['title']))
+                logger.warn('{0} is not currently monitored'.format(check['title']))
         del series[:]
         return matched
 
@@ -313,6 +311,7 @@ class SonarrYTDL(object):
         return ytdlopts
 
     def ytsearch(self, ydl_opts, playlist):
+        result = None
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 result = ydl.extract_info(
@@ -321,13 +320,17 @@ class SonarrYTDL(object):
                 )
         except Exception as e:
             logger.error(e)
-        else:
-            video_url = None
-            if 'entries' in result and len(result['entries']) > 0:
-                try:
-                    video_url = result['entries'][0].get('webpage_url')
-                except Exception as e:
-                    logger.error(e)
+            return False, ''
+
+        if result is None:
+            return False, ''
+
+        video_url = None
+        if isinstance(result, dict) and 'entries' in result and len(result['entries']) > 0:
+            try:
+                video_url = result['entries'][0].get('webpage_url')
+            except Exception as e:
+                logger.error(e)
             else:
                 video_url = result.get('webpage_url')
             if playlist == video_url:
@@ -337,6 +340,9 @@ class SonarrYTDL(object):
                 return False, ''
             else:
                 return True, video_url
+
+        # Add default return to ensure a tuple is always returned
+        return False, ''
 
     def download(self, series, episodes):
         if len(series) != 0:
@@ -356,7 +362,8 @@ class SonarrYTDL(object):
                             ytdl_format_options = {
                                 'format': self.ytdl_format,
                                 'quiet': True,
-                                'merge-output-format': 'mp4',
+                                'merge-output-format': 'mkv',
+                                'remux-video': 'mkv',
                                 'outtmpl': '/sonarr_root{0}/Season {1}/{2} - S{1}E{3} - {4} WEBDL.%(ext)s'.format(
                                     ser['path'],
                                     eps['seasonNumber'],
@@ -417,14 +424,12 @@ class SonarrYTDL(object):
             logger.info('Default scan interval of every {} minutes in use'.format(interval))
         return
 
-
 def main():
     client = SonarrYTDL()
     series = client.filterseries()
     episodes = client.getseriesepisodes(series)
     client.download(series, episodes)
     logger.info('Waiting...')
-
 
 if __name__ == "__main__":
     logger.info('Initial run')

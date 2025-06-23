@@ -1,43 +1,57 @@
-FROM python:alpine AS base
+# check=skip=UndefinedVar
 
+FROM python:3.11-alpine AS base
+
+# Install system dependencies
 RUN apk update && \
-    apk add --no-cache ffmpeg
+    apk add --no-cache ffmpeg && \
+    rm -rf /var/cache/apk/*
 
-#LABEL maintainer="Martin Jones <whatdaybob@outlook.com>"
+FROM python:3.11-alpine AS dependencies
 
-FROM python:alpine AS dependencies
-
+# Install build dependencies and Python packages
 COPY requirements.txt ./
 RUN apk update && \
     apk add --no-cache build-base && \
-    pip install --upgrade pip && pip install -r requirements.txt
+    pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /var/cache/apk/*
 
 FROM base
 
 ARG UID=1000 GID=1000 UNAME=abc
 
-RUN adduser -D $UNAME
-WORKDIR /home/$UNAME
+# Create user and directories
+RUN adduser -D -u $UID $UNAME && \
+    mkdir -p /config /sonarr_root /logs /app && \
+    chown -R $UNAME:$UNAME /config /sonarr_root /logs /app
 
-COPY . /home/$UNAME
-COPY --from=dependencies /root/.cache /root/.cache
-COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt && rm -rf /root/.cache
+# Install requirements directly (simpler approach)
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
 
-RUN mkdir /config /sonarr_root /logs && \
-    touch /var/lock/sonarr_youtube.lock
-COPY app/ /app
+# Copy application files
+COPY app/ /app/
+RUN chmod +x /app/main.py && \
+    chown -R $UNAME:$UNAME /app
 
-RUN \
-    chmod a+x \
-    /app/sonarr_youtubedl.py \
-    /app/utils.py \
-    /app/config.yml.template
-
-COPY --chown=$UID:$GID . .
+# Set working directory and user
+WORKDIR /app
 USER $UNAME
 
-VOLUME /config /sonarr_root /logs
+# Set environment variables
 
-ENV CONFIGPATH=/config/config.yml
-CMD [ "python", "-u", "/app/sonarr_youtubedl.py" ]
+ENV PYTHONPATH="/app/src:$PYTHONPATH"
+ENV CONFIGPATH="/config/config.yml"
+
+# Define volumes
+VOLUME ["/config", "/sonarr_root", "/logs"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.path.insert(0, '/app/src'); from config import ConfigManager; ConfigManager().load_config()" || exit 1
+
+# Start the application
+CMD ["python", "-u", "/app/main.py"]
